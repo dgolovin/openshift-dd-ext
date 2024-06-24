@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { loadKubeContext } from './utils/OcUtils';
-import { Card, CardHeader, CardContent, IconButton, List, ListItem, ListItemText, Box, Button } from "@mui/material";
+import { Card, CardHeader, CardContent, IconButton, List, ListItem, ListItemText, Box, Button, Tooltip } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import ExpandLessRounded from '@mui/icons-material/ExpandLessRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
@@ -11,10 +11,12 @@ import { ChangeContext } from './dialogs/changeContext';
 import { EditRounded } from '@mui/icons-material';
 import { LoginRounded } from '@mui/icons-material';
 import { ChangeProject } from './dialogs/changeProject';
+import { useRecoilState } from 'recoil';
+import { currentContextState } from './state/currentContextState';
 
 export function CurrentContext() {
   const [loading, setLoading] = useState(true);
-  const [currentContext, setCurrentContext] = useState(UnknownKubeContext);
+  const [currentContext, setCurrentContext] = useRecoilState(currentContextState);
   const [expanded, setExpanded] = useState(false);
 
   const handleLogin = () => {
@@ -84,25 +86,31 @@ export function CurrentContext() {
         <CardHeader
           action={
             <>
-              <IconButton
-                aria-label="action"
-                onClick={handleLogin}>
-                <LoginRounded />
-              </IconButton>
-              <IconButton
-                aria-label="action"
-                onClick={handleChangeContext}>
-                <EditIcon />
-              </IconButton>
-              <IconButton
-                onClick={handleExpand}>
-                {(expanded) && (
-                  <ExpandLessRounded />
-                )}
-                {(!expanded) && (
-                  <ExpandMoreRounded />
-                )}
-              </IconButton>
+              <Tooltip title='Login to an OpenShift cluster' placement='bottom-end'>
+                <IconButton
+                  aria-label="action"
+                  onClick={handleLogin}>
+                  <LoginRounded />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title='Change context' placement='bottom-end'>
+                <IconButton
+                  aria-label="action"
+                  onClick={handleChangeContext}>
+                  <EditIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title='Expand context details' placement='bottom-end'>
+                <IconButton
+                  onClick={handleExpand}>
+                  {(expanded) && (
+                    <ExpandLessRounded />
+                  )}
+                  {(!expanded) && (
+                    <ExpandMoreRounded />
+                  )}
+                </IconButton>
+              </Tooltip>
             </>
           }
           title={
@@ -113,7 +121,13 @@ export function CurrentContext() {
         <CardContent hidden={!expanded} sx={{ paddingTop: "0px" }}>
           <Box>Server: <a onClick={openClusterPage} href="" style={styles.link}>{currentContext.clusterUrl}</a></Box>
           <Box>User: {currentContext.user}</Box>
-          <Box>Project: {currentContext.project} <Button sx={{ padding: 0 }} size="small" onClick={handleChangeProject}>Change</Button></Box>
+          <Box>Project: {currentContext.project}
+            {(currentContext !== UnknownKubeContext) && (
+              <Tooltip title='Select a different project to deploy to'>
+                <Button sx={{ padding: 0 }} size="small" onClick={handleChangeProject}>Change</Button>
+              </Tooltip>
+            )}
+          </Box>
         </CardContent>
       </Card >
       <LoginDialog install={installDialog} onLogin={onLogin} />

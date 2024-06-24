@@ -153,8 +153,8 @@ export async function loadProjectNames(): Promise<string[]> {
   });
 }
 
-export async function loadServerUrls(): Promise<string[]> {
-  const kc = await readKubeConfig();
+export async function loadServerUrls(kcp: any = undefined): Promise<string[]> {
+  const kc = kcp ? kcp : await readKubeConfig();
   const clusters: string[] = kc.clusters.map((item: any) => item.cluster.server);
   return [... new Set(clusters)];
 }
@@ -218,5 +218,47 @@ export async function login(cluster: string, username: string, password: string)
       reject(e.stderr);
     });
   });
+}
+
+export async function loginWithToken(cluster: string, token: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    ddClient.extension?.host?.cli.exec(ocPath, ["login", cluster, '--token', token]).then(result => {
+      if (result.stderr) {
+        console.log("stderr:" + result.stderr);
+        reject(result.stderr);
+      }
+      console.log(`logged into cluster ${cluster}  with token ${token}.`);
+      resolve();
+    }).catch((e) => {
+      reject(e.stderr);
+    });
+  });
+}
+
+export async function createProject(name: string): Promise<void> {
+  return ddClient.extension?.host?.cli.exec(ocPath, ['new-project', name]).then((result) => {
+    if (result.stderr) {
+      console.error('stderr:', result.stderr);
+      throw new Error(result.stderr);
+    }
+    console.info(`Created project '${name}'.`)
+  });
+}
+
+export async function listProjects(): Promise<string[]> {
+  const result = ddClient.extension?.host?.cli.exec(
+    ocPath,
+    ['get', 'projects', '-o', 'jsonpath="{range .items[*]}{.metadata.name}{\' \'}{range}"']
+  ).then((result) => {
+    let projects: string[] = [];
+    if (result.stderr) {
+      console.error('stderr:', result.stderr);
+    } else {
+      console.info(`Available projects '${result.stdout}'.`);
+      projects = result.stdout.trim().split(' ');
+    }
+    return projects;
+  });
+  return result ? result : []; // check for null required because of optional chaining
 }
 

@@ -10,6 +10,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { Backdrop, Box, CircularProgress, Divider, List, ListItem, ListItemAvatar, ListItemButton, ListItemText, Typography } from '@mui/material';
 import { loadKubeContext, loadProjectNames, setCurrentContextProject } from '../utils/OcUtils';
 import { createDockerDesktopClient } from '@docker/extension-api-client';
+import { NewProjectDialog } from './newProject';
 
 export interface ChangeProjectDialogProps {
   install: (showDialog: () => void) => void;
@@ -19,6 +20,7 @@ export interface ChangeProjectDialogProps {
 export function ChangeProject(props: ChangeProjectDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
+  const [changing, setChanging] = React.useState(false);
   const [currentProject, setCurrentProject] = React.useState('');
   const [selectedProject, setSelectedProject] = React.useState('');
   const [projects, setProjects] = React.useState<string[]>([]);
@@ -30,9 +32,11 @@ export function ChangeProject(props: ChangeProjectDialogProps) {
   };
 
   const handleChange = () => {
+    setChanging(true);
     setCurrentContextProject(selectedProject).catch((error) => {
       ddClient.desktopUI.toast.error('Setting current project for current context failed.');
     }).then(() => {
+      setChanging(false);
       setOpen(false)
       props.onProjectChange();
     });
@@ -60,36 +64,57 @@ export function ChangeProject(props: ChangeProjectDialogProps) {
     });
   }
 
+  let showNewProjectDialog: () => void;
+
+  const installNewProjectDialog = (showDialogHandler: () => void) => {
+    showNewProjectDialog = showDialogHandler;
+  }
+
+  const onProjectCreated = () => {
+    props.onProjectChange();
+  }
+
+  const handleNewProject = () => {
+    setOpen(false);
+    showNewProjectDialog();
+  };
+
   props.install(handleOpen);
 
   return (
     <div>
-      <Dialog open={open} onClose={handleClose} fullWidth={true}>
+      <Dialog open={open} onClose={handleClose} fullWidth={true} PaperProps={{
+        sx: {
+          minWidth: 500,
+          minHeight: 570
+        }
+      }}>
         <DialogTitle>Change Project</DialogTitle>
         <DialogContent>
           <DialogContentText paddingBottom="16px">
             <Typography
-              component="div"
+              component="span"
               variant="body1"
               color="text.primary">
               Select Project from the list below
             </Typography>
           </DialogContentText>
-          {(loading) && (
+          {(loading || changing) && (
             <Box width="100%" component="div" display="flex" alignContent="center" justifyContent="center" padding="20px">
               <CircularProgress />
             </Box>
           )}
-          {(!loading) && (
+          {(!loading && !changing) && (
             <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
               {projects.map((project, index) => {
                 return (
-                  <>
-                    <ListItemButton alignItems="flex-start" selected={project === selectedProject} onClick={() => handleSelect(project)} key={project}>
-                      <ListItemText
-                        primary={
-                          <React.Fragment>
+                  <React.Fragment key={index}>
+                    <ListItem>
+                      <ListItemButton alignItems="flex-start" selected={project === selectedProject} onClick={() => handleSelect(project)}>
+                        <ListItemText
+                          primary={
                             <Typography
+                              component="span"
                               sx={{
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
@@ -97,23 +122,26 @@ export function ChangeProject(props: ChangeProjectDialogProps) {
                               }}>
                               {project}
                             </Typography>
-                          </React.Fragment>
-                        }
-                      />
-                    </ListItemButton>
+                          }
+                        />
+                      </ListItemButton>
+                    </ListItem>
                     {(index + 1 < projects.length) && (<Divider variant="fullWidth" />)}
-                  </>
+                  </React.Fragment>
                 )
               })
               }
             </List>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ padding: "0 24px 20px 24px" }}>
+          <Button variant="outlined" disabled={loading} onClick={handleNewProject}> New Project</Button>
+          <div style={{ flex: '1 0 0' }} />
           <Button variant="outlined" onClick={handleClose}>Cancel</Button>
           <Button variant="contained" disabled={currentProject === selectedProject || loading} onClick={handleChange}>Change</Button>
         </DialogActions>
       </Dialog >
+      <NewProjectDialog install={installNewProjectDialog} onCreate={onProjectCreated} existingProjects={projects} />
     </div >
   );
 }
